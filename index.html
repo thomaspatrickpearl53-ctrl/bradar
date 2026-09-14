@@ -194,7 +194,17 @@ img{display:block;}
 .member-row{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:4px;cursor:pointer;}
 .member-row:hover{background:var(--bg-hover);}
 .member-row img{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--bg-mod);}
-.member-row span{font-size:15px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.member-row span{font-size:15px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;}
+.member-kick-btn{margin-left:4px;flex-shrink:0;color:var(--text-faint);font-size:13px;padding:3px 7px;border-radius:4px;}
+.member-kick-btn:hover{color:#fff;background:var(--red);}
+
+/* Discover */
+.discover-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;max-width:900px;}
+.discover-card{background:var(--bg-mod);border-radius:8px;padding:16px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;}
+.discover-card-icon{width:64px;height:64px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;overflow:hidden;margin-bottom:6px;}
+.discover-card-icon img{width:100%;height:100%;object-fit:cover;}
+.discover-card-name{font-weight:700;color:var(--header);font-size:15px;}
+.discover-card-members{font-size:12px;color:var(--text-muted);}
 
 /* Friends / Home view */
 .friends-header{
@@ -420,6 +430,14 @@ img{display:block;}
         <button class="btn" id="inv-copy" style="width:auto;flex:1;">Copy Code</button>
         <button class="btn danger" id="inv-leave" style="width:auto;">Leave Server</button>
       </div>
+      <div id="inv-owner-settings" class="hidden" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--divider);">
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.02em;margin-bottom:8px;">List on Discover Tab</label>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Let anyone browse and join this server from the Discover tab — no invite code needed.</p>
+        <div style="display:flex;gap:8px;">
+          <button class="btn secondary" id="inv-discover-yes" style="width:auto;flex:1;">Yes</button>
+          <button class="btn secondary" id="inv-discover-no" style="width:auto;flex:1;">No</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -559,10 +577,17 @@ img{display:block;}
           </div>
         </div>
       </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Members</label>
+        <div id="egc-member-list" style="max-height:180px;overflow-y:auto;"></div>
+      </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn secondary" data-close="modal-edit-gc" style="width:auto;">Cancel</button>
-      <button class="btn" id="egc-submit" style="width:auto;">Save Changes</button>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn danger" id="egc-disband" style="width:auto;">Disband Group Chat</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn secondary" data-close="modal-edit-gc" style="width:auto;">Cancel</button>
+        <button class="btn" id="egc-submit" style="width:auto;">Save Changes</button>
+      </div>
     </div>
   </div>
 </div>
@@ -680,6 +705,7 @@ let myFriendships = []; // [{id, participants:[uidA,uidB]}]
 let friendUids = []; // derived list of my friend uids
 let pendingIcon = null;
 let unsubFriendships = null;
+let unsubDiscover = null;            // listener on the Discover page's discoverable-servers query
 let unsubTyping = null;              // listener on the current conversation's "typing" subcollection
 let myTypingDocRef = null;           // my own doc within that subcollection
 let typingUsersRaw = {};             // uid -> {name, updatedAtMillis} for the current conversation
@@ -776,9 +802,11 @@ function cleanupListeners(){
   if(unsubBlocked) unsubBlocked();
   if(unsubFriendships) unsubFriendships();
   teardownTyping();
+  teardownDiscover();
   Object.values(userListeners).forEach(fn=>fn());
   userListeners = {};
 }
+function teardownDiscover(){ if(unsubDiscover){ unsubDiscover(); unsubDiscover = null; } }
 
 /* live-subscribe to any user doc we need to display */
 function watchUser(uid, cb){
@@ -798,9 +826,9 @@ function initApp(){
     (snap)=>{
       servers = snap.docs.map(d=>({id:d.id, ...d.data()}));
       renderServerRail();
-      if(currentView !== 'home' && !servers.find(s=>s.id===currentView)){
+      if(currentView !== 'home' && currentView !== 'discover' && !servers.find(s=>s.id===currentView)){
         goHome();
-      } else if(currentView !== 'home'){
+      } else if(currentView !== 'home' && currentView !== 'discover'){
         const s = servers.find(sv=>sv.id===currentView);
         if(s) renderMembers(s);
       }
@@ -843,6 +871,10 @@ function initApp(){
       myGroupChats = snap.docs.map(d=>({id:d.id, ...d.data()}));
       myGroupChats.sort((a,b)=> (b.updatedAt?.toMillis?.()||0) - (a.updatedAt?.toMillis?.()||0));
       myGroupChats.forEach(gc=> (gc.participants||[]).forEach(uid=>{ if(uid!==currentUser.uid) watchUser(uid, ()=>{ if(currentGC===gc.id) updateGCHeaderInPlace(gc.id); if(currentView==='home') renderSidebar(); }); }));
+      if(currentGC && !myGroupChats.find(g=>g.id===currentGC)){
+        // The group chat was disbanded, or I was removed from it — bail out to Home.
+        goHome();
+      }
       if(currentView==='home') renderSidebar();
     }
   );
@@ -905,6 +937,14 @@ function renderServerRail(){
   addBtn.onclick = () => openOverlay('modal-create-server');
   rail.appendChild(addBtn);
 
+  const discoverBtn = document.createElement('div');
+  discoverBtn.className = 'rail-item' + (currentView==='discover' ? ' active' : '');
+  discoverBtn.title = 'Discover';
+  discoverBtn.style.fontSize='20px';
+  discoverBtn.innerHTML = `<div class="pill"></div>🧭`;
+  discoverBtn.onclick = goDiscover;
+  rail.appendChild(discoverBtn);
+
   const joinBtn = document.createElement('div');
   joinBtn.className = 'rail-item rail-add';
   joinBtn.title = 'Join a server';
@@ -920,6 +960,7 @@ function goHome(){
   currentView = 'home'; currentChannel = null; currentDM = null; currentGC = null;
   $('member-list').classList.add('hidden');
   teardownTyping();
+  teardownDiscover();
   renderServerRail();
   $('sidebar-header').onclick = null;
   $('sidebar-title').textContent = 'Home';
@@ -1198,6 +1239,7 @@ async function openDM(otherUid){
     return;
   }
   currentView = 'home'; currentChannel = null; currentDM = otherUid; currentGC = null; currentFriendsPage = null;
+  teardownDiscover();
   renderSidebar();
   const id = dmId(currentUser.uid, otherUid);
   try{
@@ -1265,6 +1307,7 @@ async function createGroupChatFlow(){
 }
 async function openGroupChat(gcId){
   currentView = 'home'; currentChannel = null; currentDM = null; currentGC = gcId; currentFriendsPage = null;
+  teardownDiscover();
   renderSidebar();
   const gc = myGroupChats.find(g=>g.id===gcId);
   (gc?.participants||[]).forEach(uid=>{ if(uid!==currentUser.uid) watchUser(uid, ()=>{ if(currentGC===gcId) updateGCHeaderInPlace(gcId); }); });
@@ -1333,8 +1376,82 @@ function updateDMHeaderInPlace(uid, profile){
 function openServer(serverId){
   currentView = serverId; currentChannel = null; currentDM = null; currentGC = null;
   $('member-list').classList.remove('hidden');
+  teardownDiscover();
   renderServerRail();
   renderSidebar();
+}
+
+/* ---------------- Discover ---------------- */
+function goDiscover(){
+  currentView = 'discover'; currentChannel = null; currentDM = null; currentGC = null; currentFriendsPage = null;
+  $('member-list').classList.add('hidden');
+  teardownTyping();
+  if(unsubChannels){ unsubChannels(); unsubChannels = null; }
+  renderServerRail();
+  $('sidebar-header').onclick = null;
+  $('sidebar-title').textContent = 'Discover';
+  const list = $('sidebar-list');
+  list.innerHTML = `<div style="padding:16px 8px;color:var(--text-muted);font-size:13px;line-height:1.5;">
+    Browse public servers that have opted in to being listed here. Joining is instant — no invite code needed.
+  </div>`;
+  renderDiscoverPage();
+}
+
+function renderDiscoverPage(){
+  const area = $('chat-area');
+  area.innerHTML = `
+    <div class="friends-header">
+      <div class="title">🧭 Discover Servers</div>
+    </div>
+    <div class="friends-body" id="discover-body">
+      <p style="color:var(--text-muted);">Loading discoverable servers…</p>
+    </div>
+  `;
+  teardownDiscover();
+  unsubDiscover = onSnapshot(
+    query(collection(db,'servers'), where('discoverable','==', true)),
+    (snap)=>{
+      const body = $('discover-body');
+      if(!body) return; // navigated away before this fired
+      const list = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(s=> !servers.find(m=>m.id===s.id));
+      if(!list.length){
+        body.innerHTML = `<p style="color:var(--text-muted);">No discoverable servers right now — check back later!</p>`;
+        return;
+      }
+      body.innerHTML = `<div class="discover-grid" id="discover-grid"></div>`;
+      const grid = $('discover-grid');
+      list.forEach(s=>{
+        const card = document.createElement('div');
+        card.className = 'discover-card';
+        const memberCount = (s.members||[]).length;
+        card.innerHTML = `
+          <div class="discover-card-icon">${s.iconURL ? `<img src="${s.iconURL}"/>` : initials(s.name)}</div>
+          <div class="discover-card-name">${s.name}</div>
+          <div class="discover-card-members">${memberCount} member${memberCount===1?'':'s'}</div>
+          <button class="btn" style="width:auto;margin-top:10px;padding:6px 16px;">Join Server</button>
+        `;
+        const btn = card.querySelector('button');
+        btn.onclick = async ()=>{
+          btn.disabled = true; btn.textContent = 'Joining...';
+          try{
+            await updateDoc(doc(db,'servers',s.id), { members: arrayUnion(currentUser.uid) });
+            toast(`Joined ${s.name}!`);
+            setTimeout(()=>openServer(s.id), 300);
+          }catch(err){
+            console.error('Join from Discover failed:', err);
+            toast('Could not join: ' + (err.code || err.message || 'unknown error'));
+            btn.disabled = false; btn.textContent = 'Join Server';
+          }
+        };
+        grid.appendChild(card);
+      });
+    },
+    (err)=>{
+      console.error('Discover listener failed:', err);
+      const body = $('discover-body');
+      if(body) body.innerHTML = `<p style="color:var(--text-muted);">Could not load discoverable servers.</p>`;
+    }
+  );
 }
 
 function openChannel(serverId, channelId, channelName){
@@ -1358,13 +1475,32 @@ function renderMembers(server){
   ml.classList.remove('hidden');
   ml.innerHTML = `<h4>Members — ${(server.members||[]).length}</h4><div id="member-rows"></div>`;
   const rows = $('member-rows');
+  const isOwner = server.ownerId === currentUser.uid;
   (server.members||[]).forEach(uid=>{
     const row = document.createElement('div');
     row.className = 'member-row';
     rows.appendChild(row);
     watchUser(uid, (p)=>{
-      row.innerHTML = `<img src="${p.avatarURL || avatarFallback(p.username)}"/><span>${p.username}</span>`;
-      row.onclick = () => openProfilePopoutFor(uid, row);
+      const canKick = isOwner && uid !== currentUser.uid;
+      row.innerHTML = `<img src="${p.avatarURL || avatarFallback(p.username)}"/><span>${p.username}</span>` +
+        (canKick ? `<button class="member-kick-btn" title="Remove from server">✕</button>` : '');
+      row.onclick = (e) => {
+        if(e.target.closest('.member-kick-btn')) return;
+        openProfilePopoutFor(uid, row);
+      };
+      if(canKick){
+        row.querySelector('.member-kick-btn').onclick = async (e) => {
+          e.stopPropagation();
+          if(!confirm(`Remove ${p.username} from ${server.name}?`)) return;
+          try{
+            await updateDoc(doc(db,'servers',server.id), { members: arrayRemove(uid) });
+            toast(`${p.username} removed from the server.`);
+          }catch(err){
+            console.error('Remove member failed:', err);
+            toast('Could not remove member: ' + (err.code || err.message || 'unknown error'));
+          }
+        };
+      }
     });
   });
 }
@@ -1628,7 +1764,37 @@ async function openEditGroupChat(gcId){
   $('egc-name').value = gc.name || '';
   $('egc-icon-url').value = gc.iconURL || '';
   renderURLPreview('egc-icon-preview', gc.iconURL || '', 'Icon', true);
+  renderEGCMemberList(gc);
   openOverlay('modal-edit-gc');
+}
+
+function renderEGCMemberList(gc){
+  const body = $('egc-member-list');
+  if(!body) return;
+  body.innerHTML = '';
+  (gc.participants||[]).forEach(uid=>{
+    const p = usersCache[uid] || {};
+    const isSelf = uid === currentUser.uid;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 4px;';
+    row.innerHTML = `<img src="${p.avatarURL || avatarFallback(p.username||'?')}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>` +
+      `<span style="flex:1;color:var(--text);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.username||'...'}${isSelf?' (you)':''}</span>` +
+      (isSelf ? '' : `<button class="btn danger" style="width:auto;flex-shrink:0;padding:4px 10px;font-size:12px;">Remove</button>`);
+    if(!isSelf){
+      row.querySelector('button').onclick = async ()=>{
+        if(!confirm(`Remove ${p.username || 'this member'} from the group chat?`)) return;
+        try{
+          await updateDoc(doc(db,'groupChats', gc.id), { participants: arrayRemove(uid) });
+          toast('Member removed.');
+          row.remove();
+        }catch(err){
+          console.error('Remove GC member failed:', err);
+          toast('Could not remove member: ' + (err.code || err.message || 'unknown error'));
+        }
+      };
+    }
+    body.appendChild(row);
+  });
 }
 
 $('egc-icon-url').oninput = () => {
@@ -1662,6 +1828,27 @@ $('egc-submit').onclick = async () => {
     toast('Could not update group chat: ' + (e.code || e.message || 'unknown error'));
   }
   $('egc-submit').disabled = false;
+};
+
+$('egc-disband').onclick = async () => {
+  if(!currentGC) return;
+  const gc = myGroupChats.find(g=>g.id===currentGC);
+  if(!gc || gc.ownerId !== currentUser.uid){
+    toast('Only the group chat owner can disband it.');
+    return;
+  }
+  if(!confirm(`Disband "${gc.name || 'this group chat'}"? This cannot be undone and everyone will lose access.`)) return;
+  $('egc-disband').disabled = true;
+  try{
+    await deleteDoc(doc(db,'groupChats', currentGC));
+    closeOverlay('modal-edit-gc');
+    toast('Group chat disbanded.');
+    goHome();
+  }catch(e){
+    console.error('Disband group chat failed:', e);
+    toast('Could not disband group chat: ' + (e.code || e.message || 'unknown error'));
+  }
+  $('egc-disband').disabled = false;
 };
 
 /* ---------------- Profile popout ---------------- */
@@ -1801,7 +1988,7 @@ $('cs-submit').onclick = async () => {
   try{
     const inviteCode = randCode(8);
     const serverRef = await addDoc(collection(db,'servers'), {
-      name, ownerId: currentUser.uid, members:[currentUser.uid], inviteCode, iconURL:'', createdAt: serverTimestamp()
+      name, ownerId: currentUser.uid, members:[currentUser.uid], inviteCode, iconURL:'', discoverable:false, createdAt: serverTimestamp()
     });
     if(pendingIcon){
       const url = await uploadImage(pendingIcon, `serverIcons/${serverRef.id}`);
@@ -1841,12 +2028,62 @@ function openInviteModal(server){
   $('inv-copy').onclick = ()=>{
     navigator.clipboard.writeText(server.inviteCode).then(()=>toast('Invite code copied!'));
   };
-  $('inv-leave').onclick = async ()=>{
-    await updateDoc(doc(db,'servers',server.id), { members: arrayRemove(currentUser.uid) });
-    closeOverlay('modal-invite');
-    goHome();
-  };
+
+  const isOwner = server.ownerId === currentUser.uid;
+  const leaveBtn = $('inv-leave');
+  const ownerSettings = $('inv-owner-settings');
+
+  if(isOwner){
+    leaveBtn.textContent = 'Delete Server';
+    leaveBtn.onclick = async ()=>{
+      if(!confirm(`Delete "${server.name}"? This permanently deletes the server for everyone and cannot be undone.`)) return;
+      leaveBtn.disabled = true;
+      try{
+        await deleteDoc(doc(db,'servers',server.id));
+        closeOverlay('modal-invite');
+        toast('Server deleted.');
+        goHome();
+      }catch(e){
+        console.error('Delete server failed:', e);
+        toast('Could not delete server: ' + (e.code || e.message || 'unknown error'));
+      }
+      leaveBtn.disabled = false;
+    };
+    ownerSettings.classList.remove('hidden');
+    updateDiscoverToggleUI(server.discoverable === true);
+    $('inv-discover-yes').onclick = ()=> setServerDiscoverable(server, true);
+    $('inv-discover-no').onclick = ()=> setServerDiscoverable(server, false);
+  } else {
+    leaveBtn.textContent = 'Leave Server';
+    leaveBtn.onclick = async ()=>{
+      if(!confirm(`Leave "${server.name}"?`)) return;
+      await updateDoc(doc(db,'servers',server.id), { members: arrayRemove(currentUser.uid) });
+      closeOverlay('modal-invite');
+      goHome();
+    };
+    ownerSettings.classList.add('hidden');
+  }
+
   openOverlay('modal-invite');
+}
+
+function updateDiscoverToggleUI(isYes){
+  $('inv-discover-yes').style.background = isYes ? 'var(--brand)' : '';
+  $('inv-discover-yes').style.color = isYes ? '#fff' : '';
+  $('inv-discover-no').style.background = !isYes ? 'var(--brand)' : '';
+  $('inv-discover-no').style.color = !isYes ? '#fff' : '';
+}
+
+async function setServerDiscoverable(server, value){
+  try{
+    await updateDoc(doc(db,'servers',server.id), { discoverable: value });
+    server.discoverable = value;
+    updateDiscoverToggleUI(value);
+    toast(value ? 'Server is now listed on Discover.' : 'Server removed from Discover.');
+  }catch(e){
+    console.error('Update discoverable failed:', e);
+    toast('Could not update: ' + (e.code || e.message || 'unknown error'));
+  }
 }
 
 /* Create channel */
