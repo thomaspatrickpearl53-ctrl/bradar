@@ -141,7 +141,7 @@ img{display:block;}
 }
 .user-bar-avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--bg-mod);position:relative;flex-shrink:0;}
 .status-dot{
-  position:absolute;width:10px;height:10px;border-radius:50%;border:2.5px solid #232428;bottom:-2px;right:-2px;
+  position:absolute;width:10px;height:10px;border-radius:50%;border:2.5px solid #232428;bottom:-2px;right:-2px;cursor:pointer;
 }
 .user-bar-info{flex:1;overflow:hidden;cursor:pointer;}
 .user-bar-name{font-size:14px;font-weight:600;color:var(--header);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -166,6 +166,14 @@ img{display:block;}
 .msg-head{display:flex;align-items:baseline;gap:8px;}
 .msg-author{font-weight:600;color:var(--header);cursor:pointer;font-size:15.5px;}
 .msg-author:hover{text-decoration:underline;}
+.staff-badge{
+  display:inline-flex;align-items:center;gap:3px;
+  background:linear-gradient(135deg,#5865f2,#8b5cf6);
+  color:#fff;font-size:10px;font-weight:800;
+  padding:2px 6px;border-radius:4px;margin-left:6px;
+  text-transform:uppercase;letter-spacing:.03em;
+  vertical-align:middle;
+}
 .msg-time{font-size:11px;color:var(--text-faint);}
 .msg-text{font-size:15px;line-height:1.4;color:var(--text);white-space:pre-wrap;word-break:break-word;}
 .empty-chat{
@@ -226,7 +234,7 @@ img{display:block;}
 .friend-meta{flex:1;min-width:0;}
 .friend-meta .name{font-weight:600;color:var(--header);}
 .friend-meta .sub{font-size:13px;color:var(--text-muted);}
-.friend-actions{display:flex;gap:8px;}
+.friend-actions{display:flex;gap:8px;align-items:center;}
 .round-btn{
   width:36px;height:36px;border-radius:50%;background:var(--bg-mod);display:flex;align-items:center;justify-content:center;
   color:var(--text-muted);
@@ -279,6 +287,7 @@ img{display:block;}
 .profile-avatar-wrap .status-dot{width:18px;height:18px;bottom:2px;right:2px;border-width:4px;border-color:var(--bg-float);}
 .profile-info{padding:44px 16px 16px;}
 .profile-info .name{font-size:18px;font-weight:800;color:var(--header);}
+.profile-info .handle{font-size:13px;color:var(--text-muted);margin-top:2px;}
 .profile-info .bio{font-size:13px;color:var(--text);margin-top:10px;background:#1e1f22;padding:10px;border-radius:6px;white-space:pre-wrap;}
 .profile-info .empty-bio{color:var(--text-faint);font-style:italic;}
 .profile-actions{padding:0 16px 16px;display:flex;gap:8px;}
@@ -293,6 +302,23 @@ img{display:block;}
 .status-opt{display:flex;align-items:center;gap:10px;padding:8px;border-radius:4px;font-size:14px;}
 .status-opt:hover{background:var(--bg-hover);}
 .status-swatch{width:10px;height:10px;border-radius:50%;}
+
+.color-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--divider);}
+.color-row:last-child{border-bottom:none;}
+.color-row .cr-label{font-size:14px;color:var(--text);}
+.color-row .cr-hint{font-size:12px;color:var(--text-faint);margin-top:2px;}
+.color-row .cr-control{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.color-row input[type=color]{
+  width:40px;height:32px;border:none;border-radius:6px;background:none;cursor:pointer;padding:0;
+  -webkit-appearance:none;appearance:none;
+}
+.color-row input[type=color]::-webkit-color-swatch-wrapper{padding:0;}
+.color-row input[type=color]::-webkit-color-swatch{border:none;border-radius:6px;}
+.color-row .cr-hex{
+  width:76px;background:#1e1f22;border:1px solid #1a1b1e;border-radius:4px;padding:6px 8px;
+  font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-muted);outline:none;text-transform:uppercase;
+}
+.color-row .cr-hex:focus{border-color:var(--brand);}
 
 .hidden{display:none !important;}
 .toast{
@@ -498,9 +524,14 @@ img{display:block;}
                    autocomplete="off" />
           </div>
 
+          <div class="field" style="margin-bottom:8px;">
+            <label>Display Name</label>
+            <input id="ep-display-name" maxlength="32" placeholder="Optional — shown instead of your username" />
+          </div>
+
           <div class="field">
-            <label>Display name</label>
-            <input id="ep-name" maxlength="32" />
+            <label>Username</label>
+            <input id="ep-name" maxlength="32" placeholder="Your username" />
           </div>
         </div>
       </div>
@@ -619,6 +650,41 @@ img{display:block;}
   </div>
 </div>
 
+<!-- Site settings modal -->
+<div class="overlay" id="modal-site-settings">
+  <div class="modal" style="width:520px;">
+    <div style="position:relative;">
+      <button class="close-x" data-close="modal-site-settings">✕</button>
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <p>Customize how Wyrd looks. Changes apply instantly and are remembered on this device.</p>
+      </div>
+    </div>
+    <div class="modal-body" style="max-height:60vh;overflow-y:auto;">
+      <div id="theme-color-rows"></div>
+
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--divider);">
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.02em;margin-bottom:8px;">Theme Code</label>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">Copy your code to share this theme, or paste one someone sent you and hit Apply.</p>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <input id="theme-code-field" class="cr-hex" readonly
+                 style="flex:1;width:auto;text-transform:none;" />
+          <button class="btn secondary" id="theme-code-copy" style="width:auto;">Copy</button>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input id="theme-code-paste" class="cr-hex" placeholder="Paste a theme code..."
+                 style="flex:1;width:auto;text-transform:none;" />
+          <button class="btn" id="theme-code-apply" style="width:auto;">Apply</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn secondary" id="theme-reset" style="width:auto;">Reset to Default</button>
+      <button class="btn" data-close="modal-site-settings" style="width:auto;">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- Profile popout -->
 <div id="profile-popout"></div>
 
@@ -682,6 +748,69 @@ async function uploadImage(file, path){
   await uploadBytes(r, file);
   return await getDownloadURL(r);
 }
+
+/* ---------------- Theming (site settings) ---------------- */
+// Lets each person recolor parts of the UI. Purely a client-side preference —
+// stored in localStorage on this device/browser, not synced through Firestore.
+const THEME_STORAGE_KEY = 'wyrd-theme-v1';
+const THEME_VARS = [
+  { key: '--brand',   label: 'Accent Color',              hint: 'Buttons, active states, links',        default: '#5865f2' },
+  { key: '--bg-rail',  label: 'Server Rail',               hint: 'Far-left strip of server icons',       default: '#1e1f22' },
+  { key: '--bg-side',  label: 'Sidebar',                   hint: 'Channel & DM list background',         default: '#2b2d31' },
+  { key: '--bg-base',  label: 'Chat Background',           hint: 'Main message area',                    default: '#313338' },
+  { key: '--bg-mod',   label: 'Inputs & Hover',             hint: 'Message box, hovered rows',            default: '#383a40' },
+  { key: '--header',  label: 'Heading Text',               hint: 'Names, titles, server names',          default: '#f2f3f5' },
+  { key: '--text',    label: 'Message Text',               hint: 'Regular chat text',                    default: '#dbdee1' },
+  { key: '--green',   label: 'Online / Success Color',     hint: 'Online status, accept buttons',        default: '#23a55a' },
+];
+
+function currentThemeValue(key, fallback){
+  const v = getComputedStyle(document.documentElement).getPropertyValue(key).trim();
+  return v || fallback;
+}
+function applyTheme(theme){
+  THEME_VARS.forEach(v=>{
+    document.documentElement.style.setProperty(v.key, (theme && theme[v.key]) || v.default);
+  });
+}
+function loadSavedTheme(){
+  try{
+    const raw = localStorage.getItem(THEME_STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){ console.error('Could not load saved theme:', e); }
+  return null;
+}
+function persistCurrentTheme(){
+  const theme = {};
+  THEME_VARS.forEach(v=>{ theme[v.key] = currentThemeValue(v.key, v.default); });
+  try{ localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(theme)); }
+  catch(e){ console.error('Could not save theme:', e); }
+}
+
+// A theme code is a compact, shareable string encoding every THEME_VARS color
+// in a fixed order, e.g. "WYRD1-5865f2.1e1f22.2b2d31...". Purely local — no
+// server round-trip needed to generate, share, or apply one.
+const THEME_CODE_PREFIX = 'WYRD1-';
+function currentThemeCode(){
+  const parts = THEME_VARS.map(v => currentThemeValue(v.key, v.default).replace('#','').toLowerCase());
+  return THEME_CODE_PREFIX + parts.join('.');
+}
+function parseThemeCode(code){
+  const trimmed = (code || '').trim();
+  if(!trimmed.startsWith(THEME_CODE_PREFIX)) return null;
+  const parts = trimmed.slice(THEME_CODE_PREFIX.length).split('.');
+  if(parts.length !== THEME_VARS.length) return null;
+  const theme = {};
+  for(let i=0;i<THEME_VARS.length;i++){
+    const hex = parts[i].toLowerCase();
+    if(!/^[0-9a-f]{6}$/.test(hex)) return null;
+    theme[THEME_VARS[i].key] = '#' + hex;
+  }
+  return theme;
+}
+
+// Apply any saved theme immediately, before login, so it's consistent everywhere.
+applyTheme(loadSavedTheme());
 
 /* ---------------- App State ---------------- */
 let currentUser = null;      // firebase auth user
@@ -893,8 +1022,26 @@ function initApp(){
 function renderMyBar(){
   const p = usersCache[currentUser.uid] || myProfile;
   $('mybar-avatar').src = p.avatarURL || avatarFallback(p.username);
-  $('mybar-name').textContent = p.username;
+  $('mybar-name').textContent = displayNameFor(p);
   $('mybar-status').style.background = statusColor(p.status||'online');
+}
+// Shows a person's display name if they've set one, otherwise falls back to
+// their username. The username (the @handle) stays the same either way —
+// this only affects what shows up as their "name" around the app.
+function displayNameFor(p){
+  if(p && p.displayName && p.displayName.trim()) return p.displayName.trim();
+  return (p && p.username) || '...';
+}
+
+// Hard-coded staff flag for the "@1" account. Shown as a small badge next to
+// their display name on their profile and on messages they send.
+function isStaffUser(p){
+  if(!p) return false;
+  const handle = (p.usernameLower || p.username || '').toLowerCase();
+  return handle === '1';
+}
+function staffBadgeHtml(p){
+  return isStaffUser(p) ? `<span class="staff-badge" title="Wyrd Staff">🛡 Staff</span>` : '';
 }
 function avatarFallback(name){
   const letter = initials(name);
@@ -979,11 +1126,18 @@ function renderSidebar(){
     $('sidebar-title').textContent = 'Home';
     const list = $('sidebar-list');
     list.innerHTML = '';
+
+    const newUsersBtn = document.createElement('div');
+    newUsersBtn.className = 'channel-item home-btn' + (currentDM===null && currentGC===null && currentFriendsPage==='new' ? ' active' : '');
+    newUsersBtn.innerHTML = `<span>✨</span><span class="dm-name">New Users</span>`;
+    newUsersBtn.onclick = () => { currentDM=null; currentGC=null; setFriendsPage('new'); };
+    list.appendChild(newUsersBtn);
+
     const friendsBtn = document.createElement('div');
-    friendsBtn.className = 'channel-item home-btn' + (currentDM===null && currentGC===null && currentFriendsPage ? ' active' : '');
+    friendsBtn.className = 'channel-item home-btn' + (currentDM===null && currentGC===null && currentFriendsPage && currentFriendsPage!=='new' ? ' active' : '');
     friendsBtn.innerHTML = `<span>👥</span><span class="dm-name">Friends</span>` +
       (incomingRequests.length ? `<span class="pending-badge">${incomingRequests.length}</span>` : '');
-    friendsBtn.onclick = () => { currentDM=null; currentGC=null; setFriendsPage(currentFriendsPage||'online'); };
+    friendsBtn.onclick = () => { currentDM=null; currentGC=null; setFriendsPage(currentFriendsPage && currentFriendsPage!=='new' ? currentFriendsPage : 'online'); };
     list.appendChild(friendsBtn);
 
     const label = document.createElement('div');
@@ -997,7 +1151,7 @@ function renderSidebar(){
       const item = document.createElement('div');
       item.className = 'dm-item' + (currentDM===otherUid ? ' active' : '');
       const cached = usersCache[otherUid];
-      item.innerHTML = `<img class="dm-avatar" src="${cached?.avatarURL || avatarFallback(cached?.username||'?')}"/><span class="dm-name">${cached?.username || '...'}</span>`;
+      item.innerHTML = `<img class="dm-avatar" src="${cached?.avatarURL || avatarFallback(cached?.username||'?')}"/><span class="dm-name">${cached ? displayNameFor(cached) : '...'}</span>`;
       item.onclick = () => openDM(otherUid);
       list.appendChild(item);
       watchUser(otherUid, ()=>{ if(currentView==='home') renderSidebar(); });
@@ -1011,7 +1165,7 @@ function renderSidebar(){
 
     myGroupChats.forEach(gc=>{
       const others = (gc.participants||[]).filter(u=>u!==currentUser.uid);
-      const names = others.map(u=>usersCache[u]?.username).filter(Boolean).join(', ');
+      const names = others.map(u=>usersCache[u] ? displayNameFor(usersCache[u]) : null).filter(Boolean).join(', ');
       const item = document.createElement('div');
       item.className = 'dm-item' + (currentGC===gc.id ? ' active' : '');
       item.innerHTML = `<img class="dm-avatar" src="${gc.iconURL || avatarFallback(gc.name || names || 'Group Chat')}"/><span class="dm-name">${gc.name || names || 'Group Chat'}</span>`;
@@ -1067,6 +1221,20 @@ function setFriendsPage(page){
 function renderFriendsPage(){
   const area = $('chat-area');
   $('member-list').classList.add('hidden');
+
+  if(currentFriendsPage === 'new'){
+    area.innerHTML = `
+      <div class="friends-header">
+        <div class="title">✨ New Users</div>
+      </div>
+      <div class="friends-body" id="friends-body">
+        <p style="color:var(--text-muted);">Loading new users…</p>
+      </div>
+    `;
+    loadNewUsers();
+    return;
+  }
+
   area.innerHTML = `
     <div class="friends-header">
       <div class="title">👥 Friends</div>
@@ -1116,7 +1284,7 @@ function renderFriendsPage(){
         </div>`;
       watchUser(r.from, (p)=>{
         row.querySelector('img').src = p.avatarURL || avatarFallback(p.username);
-        row.querySelector('.name').textContent = p.username;
+        row.querySelector('.name').textContent = displayNameFor(p);
       });
       row.querySelector('.accept').onclick = async (e)=>{
         e.stopPropagation();
@@ -1148,7 +1316,7 @@ function renderFriendsPage(){
     watchUser(uid, (p)=>{
       if(currentFriendsPage==='online' && p.status==='offline'){ row.style.display='none'; } else { row.style.display='flex'; }
       row.innerHTML = `<img src="${p.avatarURL || avatarFallback(p.username)}"/>
-        <div class="friend-meta"><div class="name">${p.username}</div><div class="sub" style="color:${statusColor(p.status)}">${(p.status||'offline')}</div></div>
+        <div class="friend-meta"><div class="name">${displayNameFor(p)}</div><div class="sub" style="color:${statusColor(p.status)}">${(p.status||'offline')}</div></div>
         <div class="friend-actions">
           <button class="round-btn" title="Message">✉</button>
           <button class="round-btn" title="Remove Friend">✕</button>
@@ -1157,12 +1325,74 @@ function renderFriendsPage(){
       msgBtn.onclick = (e)=>{ e.stopPropagation(); openDM(uid); };
       removeBtn.onclick = (e)=>{
         e.stopPropagation();
-        if(!confirm(`Remove ${p.username} as a friend?`)) return;
+        if(!confirm(`Remove ${displayNameFor(p)} as a friend?`)) return;
         unfriendUser(uid);
       };
       row.onclick = (e)=>{ if(e.target.closest('.round-btn')) return; openProfilePopoutFor(uid, row); };
     });
   });
+}
+
+/* ---------------- New Users ---------------- */
+async function loadNewUsers(){
+  const body = $('friends-body');
+  try{
+    const snap = await getDocs(query(collection(db,'users'), orderBy('createdAt','desc'), limit(30)));
+    if(!body || currentFriendsPage !== 'new') return; // navigated away while loading
+    const list = snap.docs
+      .map(d=>({id:d.id, ...d.data()}))
+      .filter(u => u.id !== currentUser.uid);
+    if(!list.length){
+      body.innerHTML = `<h5>New Users</h5><p style="color:var(--text-faint);">No other users yet.</p>`;
+      return;
+    }
+    body.innerHTML = `<h5>New Users — ${list.length}</h5><div id="new-users-list"></div>`;
+    const nlist = $('new-users-list');
+    list.forEach(u=>{
+      usersCache[u.id] = {...(usersCache[u.id]||{}), id:u.id, ...u};
+      const row = document.createElement('div');
+      row.className = 'friend-row';
+      nlist.appendChild(row);
+      renderNewUserRow(row, u.id);
+    });
+  }catch(e){
+    console.error('Could not load new users:', e);
+    if(body) body.innerHTML = `<h5>New Users</h5><p style="color:var(--text-muted);">Could not load new users: ${e.code || e.message || 'unknown error'}</p>`;
+  }
+}
+
+function renderNewUserRow(row, uid){
+  const p = usersCache[uid] || {};
+  const isFriend = friendUids.includes(uid);
+  const isBlocked = blockedUids.includes(uid);
+  const actionHtml = isBlocked
+    ? `<span class="sub" style="color:var(--text-faint);">Blocked</span>`
+    : isFriend
+      ? `<button class="round-btn" title="Message">✉</button>`
+      : `<button class="round-btn accept" title="Add Friend">✓</button>`;
+  row.innerHTML = `<img src="${p.avatarURL || avatarFallback(p.username||'?')}"/>
+    <div class="friend-meta"><div class="name">${p.username ? displayNameFor(p) : '...'}</div><div class="sub">Joined ${fmtTime(p.createdAt)}</div></div>
+    <div class="friend-actions">${actionHtml}</div>`;
+  const btn = row.querySelector('.round-btn');
+  if(btn){
+    btn.onclick = async (e)=>{
+      e.stopPropagation();
+      if(isFriend){ openDM(uid); return; }
+      btn.disabled = true;
+      try{
+        await setDoc(doc(db,'users',uid,'friendRequests',currentUser.uid), {
+          from: currentUser.uid, fromUsername: myProfile.username, createdAt: serverTimestamp()
+        });
+        toast('Friend request sent!');
+        btn.outerHTML = `<span class="sub" style="color:var(--text-faint);">Requested</span>`;
+      }catch(err){
+        console.error('Add friend from New Users failed:', err);
+        toast('Could not send request: ' + (err.code || err.message || 'unknown error'));
+        btn.disabled = false;
+      }
+    };
+  }
+  row.onclick = (e)=>{ if(e.target.closest('.round-btn')) return; openProfilePopoutFor(uid, row); };
 }
 
 async function sendFriendRequestFlow(){
@@ -1255,7 +1485,7 @@ async function openDM(otherUid){
   watchUser(otherUid, (p)=>{
     updateDMHeaderInPlace(otherUid, p);
   });
-  renderChatHeader({type:'dm', name: usersCache[otherUid]?.username || '...', uid: otherUid});
+  renderChatHeader({type:'dm', name: usersCache[otherUid] ? displayNameFor(usersCache[otherUid]) : '...', uid: otherUid});
   listenMessages(collection(db,'dms',id,'messages'));
   setupComposer(async (text, imageURL)=>{
     const msg = { text, authorId: currentUser.uid, createdAt: serverTimestamp() };
@@ -1276,7 +1506,7 @@ function openCreateGroupChatModal(){
       const p = usersCache[uid] || {};
       const row = document.createElement('label');
       row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 4px;cursor:pointer;';
-      row.innerHTML = `<input type="checkbox" value="${uid}" class="gc-check"/> <img src="${p.avatarURL||avatarFallback(p.username||'?')}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;"/> <span>${p.username||'...'}</span>`;
+      row.innerHTML = `<input type="checkbox" value="${uid}" class="gc-check"/> <img src="${p.avatarURL||avatarFallback(p.username||'?')}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;"/> <span>${p.username ? displayNameFor(p) : '...'}</span>`;
       body.appendChild(row);
     });
   }
@@ -1324,7 +1554,7 @@ function renderGCHeader(gcId){
   const gc = myGroupChats.find(g=>g.id===gcId);
   if(!gc) return;
   const others = (gc.participants||[]).filter(u=>u!==currentUser.uid);
-  const names = others.map(u=>usersCache[u]?.username || '...').join(', ');
+  const names = others.map(u=>usersCache[u] ? displayNameFor(usersCache[u]) : '...').join(', ');
   renderChatHeader({
     type:'gc',
     name: gc.name || names || 'Group Chat',
@@ -1349,7 +1579,7 @@ function updateGCHeaderInPlace(gcId){
   const h3 = header.querySelector('h3');
   if(!h3) return;
   const others = (gc.participants||[]).filter(u=>u!==currentUser.uid);
-  const names = others.map(u=>usersCache[u]?.username || '...').join(', ');
+  const names = others.map(u=>usersCache[u] ? displayNameFor(usersCache[u]) : '...').join(', ');
   const name = gc.name || names || 'Group Chat';
   h3.textContent = name;
   const icon = header.querySelector('img.gc-header-icon');
@@ -1367,7 +1597,7 @@ function updateDMHeaderInPlace(uid, profile){
   if(!header) return;
   const h3 = header.querySelector('h3');
   if(!h3) return;
-  h3.textContent = profile.username;
+  h3.textContent = displayNameFor(profile);
   const avatarImg = header.querySelector('img.dm-avatar');
   if(avatarImg) avatarImg.src = profile.avatarURL || avatarFallback(profile.username);
 }
@@ -1462,7 +1692,7 @@ function openChannel(serverId, channelId, channelName){
   setupComposer(async (text, imageURL)=>{
     const msg = {
       text, authorId: currentUser.uid,
-      authorName: myProfile.username, authorAvatar: myProfile.avatarURL || '',
+      authorName: displayNameFor(myProfile), authorAvatar: myProfile.avatarURL || '',
       createdAt: serverTimestamp()
     };
     if(imageURL) msg.imageURL = imageURL;
@@ -1482,7 +1712,7 @@ function renderMembers(server){
     rows.appendChild(row);
     watchUser(uid, (p)=>{
       const canKick = isOwner && uid !== currentUser.uid;
-      row.innerHTML = `<img src="${p.avatarURL || avatarFallback(p.username)}"/><span>${p.username}</span>` +
+      row.innerHTML = `<img src="${p.avatarURL || avatarFallback(p.username)}"/><span>${displayNameFor(p)}</span>` +
         (canKick ? `<button class="member-kick-btn" title="Remove from server">✕</button>` : '');
       row.onclick = (e) => {
         if(e.target.closest('.member-kick-btn')) return;
@@ -1491,10 +1721,10 @@ function renderMembers(server){
       if(canKick){
         row.querySelector('.member-kick-btn').onclick = async (e) => {
           e.stopPropagation();
-          if(!confirm(`Remove ${p.username} from ${server.name}?`)) return;
+          if(!confirm(`Remove ${displayNameFor(p)} from ${server.name}?`)) return;
           try{
             await updateDoc(doc(db,'servers',server.id), { members: arrayRemove(uid) });
-            toast(`${p.username} removed from the server.`);
+            toast(`${displayNameFor(p)} removed from the server.`);
           }catch(err){
             console.error('Remove member failed:', err);
             toast('Could not remove member: ' + (err.code || err.message || 'unknown error'));
@@ -1656,14 +1886,15 @@ function renderMessages(msgs){
   msgs.forEach(m=>{
     const isMe = m.authorId === currentUser.uid;
     const authorProfile = usersCache[m.authorId];
-    const name = isMe ? myProfile.username : (authorProfile?.username || m.authorName || 'Loading...');
+    const profileForBadge = isMe ? myProfile : authorProfile;
+    const name = isMe ? displayNameFor(myProfile) : (authorProfile ? displayNameFor(authorProfile) : (m.authorName || 'Loading...'));
     const avatar = isMe ? myProfile.avatarURL : (authorProfile?.avatarURL || m.authorAvatar);
     const group = document.createElement('div');
     group.className = 'msg-group';
     group.innerHTML = `
       <img class="msg-avatar" src="${avatar || avatarFallback(name)}" data-uid="${m.authorId}"/>
       <div class="msg-body">
-        <div class="msg-head"><span class="msg-author" data-uid="${m.authorId}">${name}</span><span class="msg-time">${fmtTime(m.createdAt)}</span></div>
+        <div class="msg-head"><span class="msg-author" data-uid="${m.authorId}">${name}</span>${staffBadgeHtml(profileForBadge)}<span class="msg-time">${fmtTime(m.createdAt)}</span></div>
         <div class="msg-text"></div>
       </div>`;
     group.querySelector('.msg-text').textContent = m.text;
@@ -1740,7 +1971,7 @@ function notifyTyping(){
   if(!isCurrentlyMarkedTyping || now - lastTypingWriteTime > 1500){
     isCurrentlyMarkedTyping = true;
     lastTypingWriteTime = now;
-    setDoc(myTypingDocRef, { name: myProfile.username, updatedAt: serverTimestamp() }).catch(()=>{});
+    setDoc(myTypingDocRef, { name: displayNameFor(myProfile), updatedAt: serverTimestamp() }).catch(()=>{});
   }
   if(typingStopTimeout) clearTimeout(typingStopTimeout);
   typingStopTimeout = setTimeout(clearMyTypingStatus, 3000);
@@ -1778,11 +2009,11 @@ function renderEGCMemberList(gc){
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 4px;';
     row.innerHTML = `<img src="${p.avatarURL || avatarFallback(p.username||'?')}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>` +
-      `<span style="flex:1;color:var(--text);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.username||'...'}${isSelf?' (you)':''}</span>` +
+      `<span style="flex:1;color:var(--text);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.username ? displayNameFor(p) : '...'}${isSelf?' (you)':''}</span>` +
       (isSelf ? '' : `<button class="btn danger" style="width:auto;flex-shrink:0;padding:4px 10px;font-size:12px;">Remove</button>`);
     if(!isSelf){
       row.querySelector('button').onclick = async ()=>{
-        if(!confirm(`Remove ${p.username || 'this member'} from the group chat?`)) return;
+        if(!confirm(`Remove ${p.username ? displayNameFor(p) : 'this member'} from the group chat?`)) return;
         try{
           await updateDoc(doc(db,'groupChats', gc.id), { participants: arrayRemove(uid) });
           toast('Member removed.');
@@ -1859,6 +2090,7 @@ function openProfilePopoutFor(uid, anchorEl){
   let left = rect.left;
   if(left + 300 > window.innerWidth) left = window.innerWidth - 316;
   if(top + 260 > window.innerHeight) top = rect.top - 260;
+  pop.style.bottom = 'auto';
   pop.style.top = top+'px'; pop.style.left = left+'px';
   pop.style.display = 'block';
 
@@ -1888,7 +2120,7 @@ function openProfilePopoutFor(uid, anchorEl){
           <div class="status-dot" style="background:${statusColor(p.status||'offline')}"></div>
         </div>
         <div class="profile-info">
-          <div class="name">${p.username}</div>
+          <div class="name">${displayNameFor(p)}${staffBadgeHtml(p)}</div>
           <div class="bio ${p.bio? '' : 'empty-bio'}">${p.bio || 'No bio yet.'}</div>
         </div>
         <div class="profile-actions" style="display:flex;gap:8px;flex-wrap:wrap;">${actionBtn}</div>
@@ -1913,14 +2145,14 @@ function openProfilePopoutFor(uid, anchorEl){
       };
       const blockBtn = $('pp-block');
       if(blockBtn) blockBtn.onclick = ()=>{
-        if(!confirm(`Block ${p.username}? They won't be able to DM you and your existing conversation will be hidden.`)) return;
+        if(!confirm(`Block ${displayNameFor(p)}? They won't be able to DM you and your existing conversation will be hidden.`)) return;
         blockUser(uid);
       };
       const unblockBtn = $('pp-unblock');
       if(unblockBtn) unblockBtn.onclick = ()=> unblockUser(uid);
       const unfriendBtn = $('pp-unfriend');
       if(unfriendBtn) unfriendBtn.onclick = ()=>{
-        if(!confirm(`Remove ${p.username} as a friend?`)) return;
+        if(!confirm(`Remove ${displayNameFor(p)} as a friend?`)) return;
         unfriendUser(uid);
       };
     } else {
@@ -1929,6 +2161,39 @@ function openProfilePopoutFor(uid, anchorEl){
   }
   watchUser(uid, render);
 }
+// Simplified popout for your OWN account, opened from the bottom-left user bar.
+// Anchored above the bar (since the bar sits at the very bottom of the screen).
+// Shows just: banner, avatar, display name, small @username, and an Edit Profile action.
+function openSelfProfilePopout(){
+  const pop = $('profile-popout');
+  const anchorEl = document.querySelector('.user-bar');
+  const rect = anchorEl.getBoundingClientRect();
+  pop.style.top = 'auto';
+  pop.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+  pop.style.left = Math.max(8, rect.left) + 'px';
+  pop.style.display = 'block';
+
+  function render(p){
+    pop.innerHTML = `
+      <div class="profile-card">
+        ${p.bannerURL ? `<img class="profile-banner" src="${p.bannerURL}"/>` : `<div class="profile-banner"></div>`}
+        <div class="profile-avatar-wrap">
+          <img src="${p.avatarURL || avatarFallback(p.username)}"/>
+          <div class="status-dot" style="background:${statusColor(p.status||'online')}"></div>
+        </div>
+        <div class="profile-info">
+          <div class="name">${displayNameFor(p)}${staffBadgeHtml(p)}</div>
+          <div class="handle">@${(p.usernameLower || p.username || '').toLowerCase()}</div>
+        </div>
+        <div class="profile-actions">
+          <button class="btn secondary" id="pp-self-edit" style="flex:1;">✏️ Edit Profile</button>
+        </div>
+      </div>`;
+    $('pp-self-edit').onclick = ()=>{ closeProfilePopout(); openEditProfile(); };
+  }
+  watchUser(currentUser.uid, render);
+}
+
 async function blockUser(uid){
   try{
     await setDoc(doc(db,'users',currentUser.uid,'blocked',uid), { blockedAt: serverTimestamp() });
@@ -2140,6 +2405,7 @@ function openEditProfile(){
   const p = usersCache[currentUser.uid] || myProfile;
 
   $('ep-name').value = p.username || '';
+  $('ep-display-name').value = p.displayName || '';
   $('ep-bio').value = p.bio || '';
   $('ep-avatar-url').value = p.avatarURL || '';
   $('ep-banner-url').value = p.bannerURL || '';
@@ -2166,9 +2432,26 @@ $('ep-submit').onclick = async () => {
   button.textContent = 'Saving...';
 
   try{
-    const username = $('ep-name').value.trim() || myProfile.username;
+    const username = $('ep-name').value.trim();
     const avatarURL = $('ep-avatar-url').value.trim();
     const bannerURL = $('ep-banner-url').value.trim();
+
+    if(!username){
+      toast('Username cannot be empty.');
+      $('ep-name').focus();
+      return;
+    }
+
+    const usernameLower = username.toLowerCase();
+    if(usernameLower !== (myProfile.usernameLower || '')){
+      const dupSnap = await getDocs(query(collection(db,'users'), where('usernameLower','==', usernameLower), limit(1)));
+      const taken = dupSnap.docs.some(d => d.id !== currentUser.uid);
+      if(taken){
+        toast(`"${username}" is already taken — try another username.`);
+        $('ep-name').focus();
+        return;
+      }
+    }
 
     if(!validImageURL(avatarURL)){
       toast('Avatar URL must start with http:// or https://');
@@ -2184,7 +2467,8 @@ $('ep-submit').onclick = async () => {
 
     const updates = {
       username,
-      usernameLower: username.toLowerCase(),
+      usernameLower,
+      displayName: $('ep-display-name').value.trim(),
       bio: $('ep-bio').value.trim(),
       avatarURL: avatarURL || '',
       bannerURL: bannerURL || ''
@@ -2213,11 +2497,76 @@ $('ep-submit').onclick = async () => {
   }
 };
 
+/* Site settings */
+function openSiteSettings(){
+  const container = $('theme-color-rows');
+  container.innerHTML = '';
+  THEME_VARS.forEach(v=>{
+    const current = currentThemeValue(v.key, v.default);
+    const row = document.createElement('div');
+    row.className = 'color-row';
+    row.innerHTML = `
+      <div>
+        <div class="cr-label">${v.label}</div>
+        <div class="cr-hint">${v.hint}</div>
+      </div>
+      <div class="cr-control">
+        <input type="text" class="cr-hex" maxlength="7" value="${current}" />
+        <input type="color" value="${current}" />
+      </div>
+    `;
+    container.appendChild(row);
+    const colorInput = row.querySelector('input[type=color]');
+    const hexInput = row.querySelector('.cr-hex');
+    colorInput.oninput = (e)=>{
+      hexInput.value = e.target.value;
+      document.documentElement.style.setProperty(v.key, e.target.value);
+      persistCurrentTheme();
+      refreshThemeCodeField();
+    };
+    hexInput.onchange = (e)=>{
+      let val = e.target.value.trim();
+      if(!val.startsWith('#')) val = '#' + val;
+      if(!/^#[0-9a-fA-F]{6}$/.test(val)){ toast('Enter a valid hex color, e.g. #5865f2'); hexInput.value = currentThemeValue(v.key, v.default); return; }
+      colorInput.value = val;
+      document.documentElement.style.setProperty(v.key, val);
+      persistCurrentTheme();
+      refreshThemeCodeField();
+    };
+  });
+  refreshThemeCodeField();
+  $('theme-code-paste').value = '';
+  openOverlay('modal-site-settings');
+}
+function refreshThemeCodeField(){
+  const field = $('theme-code-field');
+  if(field) field.value = currentThemeCode();
+}
+$('theme-code-copy').onclick = () => {
+  navigator.clipboard.writeText($('theme-code-field').value).then(()=> toast('Theme code copied!'));
+};
+$('theme-code-apply').onclick = () => {
+  const theme = parseThemeCode($('theme-code-paste').value);
+  if(!theme){ toast("That doesn't look like a valid theme code."); return; }
+  applyTheme(theme);
+  persistCurrentTheme();
+  openSiteSettings();
+  toast('Theme applied!');
+};
+$('theme-reset').onclick = () => {
+  if(!confirm('Reset all colors back to the default Wyrd theme?')) return;
+  THEME_VARS.forEach(v=> document.documentElement.style.setProperty(v.key, v.default));
+  try{ localStorage.removeItem(THEME_STORAGE_KEY); }catch(e){}
+  if($('modal-site-settings').classList.contains('show')) openSiteSettings();
+  toast('Theme reset to default.');
+};
+
 /* My bar interactions */
-$('mybar-info').onclick = openEditProfile;
-$('mybar-settings').onclick = openEditProfile;
+$('mybar-info').onclick = openSelfProfilePopout;
+$('mybar-settings').onclick = openSiteSettings;
 $('mybar-logout').onclick = () => signOut(auth);
-$('mybar-avatar').onclick = (e)=>{ e.stopPropagation(); $('status-menu').classList.toggle('show'); };
+$('mybar-avatar').onclick = (e)=>{ e.stopPropagation(); openSelfProfilePopout(); };
+$('mybar-status').onclick = (e)=>{ e.stopPropagation(); $('status-menu').classList.toggle('show'); };
 document.addEventListener('click', (e)=>{
   if(!e.target.closest('#status-menu') && !e.target.closest('#mybar-avatar')){
     $('status-menu').classList.remove('show');
